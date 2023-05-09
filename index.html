@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My chat application</title>
+    <style>
+      body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+      #nickname { min-width: 100px }
+      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
+      #input:focus { outline: none; }
+      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+      #usertyping { position: absolute; top: -22px; left: 0px; user-select: none; color: gray; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages > li { padding: 0.5rem 1rem; }
+      #messages > li:nth-child(odd) { background: #efefef; }
+      .senderName {
+        display: inline-block;
+        font-size: 20px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+      <div id="usertyping"></div>
+      <input placeholder="Enter nickname" id="nickname" />
+      <input id="input" autocomplete="off" /><button id="sendbutton">Send</button>
+    </form>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        var socket = io();
+        const form = document.getElementById("form")
+        const input = document.getElementById("input")
+        const messages = document.getElementById("messages")
+        const nickname = document.getElementById("nickname")
+        const sendbutton = document.getElementById("sendbutton")
+        const usertyping = document.getElementById("usertyping")
+        let timeout
+        
+        // Helpers
+        const addMessageToList = ({ sender, message }) => {
+          const item = document.createElement("li")
+          item.innerHTML = `<h1 class='senderName'>${sender}</h1>: ${message}`
+          messages.appendChild(item)
+          window.scrollTo(0, document.body.scrollHeight)
+        }
+
+        // Socket listeners
+        socket.on("chat message", obj => {
+          addMessageToList(obj)
+        })
+        socket.on("connection", message => {
+          alert(message)
+        })
+        socket.on("user input", message => {
+          usertyping.style.display = "block"
+          usertyping.textContent = message
+        })
+        socket.on("user inputstop", () => {
+          usertyping.textContent = ""
+          usertyping.style.display = "none"
+        })
+
+        // DOM Listeners
+        form.addEventListener("submit", e => {
+            e.preventDefault()
+            if (input.value) {
+                socket.emit("chat message", { sender: nickname.value, message: input.value})
+                addMessageToList({ sender: "You", message: input.value })
+                input.value = ""
+            }
+        });
+        nickname.addEventListener("input", e => {
+          if (!e.target.value) {
+            sendbutton.disabled = true
+          }
+          else {
+            sendbutton.disabled = false
+          }
+        })
+        input.addEventListener("input", e => {
+          if (timeout) {
+            clearTimeout(timeout)
+          }
+          socket.emit("user input", `${nickname.value} is typing...`)
+          timeout = setTimeout(() => {
+            socket.emit("user inputstop")
+          }, 1000)
+        })
+    </script>
+  </body>
+</html>
